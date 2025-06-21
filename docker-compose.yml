@@ -1,0 +1,126 @@
+services: 
+  shop_api: 
+    container_name: 'shopapi_container' 
+    build: 
+      context: . 
+    ports: 
+      - 8000:8000
+    env_file: 
+      - .env-docker
+    command: ["/shop_api/docker/app.sh"]
+    depends_on:
+      db: 
+        condition: service_healthy 
+      redis: 
+        condition: service_started 
+      celery: 
+        condition: service_started 
+      rabbitmq: 
+        condition: service_started
+
+  db: 
+    image: postgres:16 
+    container_name: 'database_container'
+    ports: 
+      - 5432:5432 
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    env_file: 
+      - .env-docker
+    volumes: 
+      - postgres:/var/lib/postgresql/data
+
+  redis: 
+    image: redis:7 
+    container_name: 'redis_container'
+    env_file: 
+      - .env-docker
+
+  rabbitmq: 
+    image: rabbitmq:latest 
+    container_name: 'rabbitmq_container' 
+    restart: always 
+    ports: 
+     - 5672:5672 
+     - 15672:15672 
+    env_file:
+      - .env-docker
+    configs: 
+      - source: rabbitmq-plugins 
+        target: /etc/rabbitmq/enabled_plugins
+
+  celery:
+    image: shop_celery 
+    build: 
+      context: .
+    container_name: 'celery_container'
+    command: ['/shop_api/docker/celery.sh', 'celery'] 
+    env_file: 
+      - .env-docker 
+    depends_on: 
+      - redis
+
+  rabbitmq_consumer: 
+    image: shop_consumer 
+    build: 
+      context: . 
+    container_name: 'consumer_container' 
+    command: ['/shop_api/docker/consumer.sh']
+    restart: always
+    env_file: 
+      - .env-docker
+    depends_on:
+      rabbitmq: 
+        condition: service_started
+
+  promtail: 
+    image: grafana/promtail:latest 
+    container_name: 'promtail_container'
+    ports: 
+      - 9080:9080
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    privileged: true
+
+  loki: 
+    image: grafana/loki:latest 
+    container_name: 'loki_container' 
+    ports: 
+      - 3100:3100
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+
+  prometheus: 
+    image: prom/prometheus:latest 
+    container_name: 'prometheus_container' 
+    ports: 
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheusdata:/prometheus
+
+  grafana: 
+    image: grafana/grafana:latest 
+    container_name: 'grafana_container' 
+    ports: 
+      - 3000:3000 
+    env_file: 
+      - .env-docker
+    volumes:
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafanadata:/var/lib/grafana
+
+configs: 
+  rabbitmq-plugins: 
+    content: '[rabbitmq_management].'
+
+volumes:
+  grafanadata:
+  prometheusdata:
+  postgres:

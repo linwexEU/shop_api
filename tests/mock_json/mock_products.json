@@ -1,0 +1,23 @@
+[
+    {
+        "category": "Keyboards", 
+        "title": "Gamepro mk100", 
+        "price": 1100.00, 
+        "image": "https://content1.rozetka.com.ua/goods/images/big_tile/533816180.jpg", 
+        "organization_id": 1
+    }, 
+    {
+        "category": "Phones", 
+        "title": "IPhone 13", 
+        "price": 25000.00, 
+        "image": "https://content1.rozetka.com.ua/goods/images/big_tile/533816180.jpg", 
+        "organization_id": 1
+    }, 
+    {
+        "category": "Monitors", 
+        "title": "MSI Optix G24 Series", 
+        "price": 7500.00, 
+        "image": "https://content1.rozetka.com.ua/goods/images/big_tile/533816180.jpg", 
+        "organization_id": 2
+    }
+]
