@@ -13,6 +13,7 @@ from src.models.enums import CategoriesEnum, UsersRoleEnum
 from src.organizations.schema import SOrganizationsFilters, SOrganizationsModel
 from src.scripts.generator import GenerateExcel
 from src.users.schema import SUsersFilters, SUsersModel
+from src.utils.decorator import async_retry
 from src.utils.dependency import organizations_service, users_service
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ class RozetkaParser:
         self.category_type = category_type
         self.store = store
 
+    @async_retry(5)
     async def get_pagination(self) -> int:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.url, headers=self.headers) as response:
@@ -91,6 +93,7 @@ class RozetkaParser:
 
         return organization_id
 
+    @async_retry(5)
     async def parse_pages(self) -> None:
         pagination = await self.get_pagination()
         await asyncio.sleep(1)
