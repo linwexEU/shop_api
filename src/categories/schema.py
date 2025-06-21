@@ -1,10 +1,11 @@
-from pydantic import BaseModel 
+from pydantic import BaseModel
+
 from src.models.enums import CategoriesEnum
 
 
-class SCategoriesModel(BaseModel): 
+class SCategoriesModel(BaseModel):
     type: CategoriesEnum
 
 
-class SCategoriesFilters(BaseModel): 
-    type: CategoriesEnum | None = None 
+class SCategoriesFilters(BaseModel):
+    type: CategoriesEnum | None = None
