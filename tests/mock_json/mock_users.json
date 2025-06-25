@@ -1,0 +1,23 @@
+[
+    {
+        "username": "akashi", 
+        "email": "linwexunstop@gmail.com", 
+        "hashed_password": "$2b$12$CNNiyejE6nu4mfRbExBGYe8lfday/m0c3V9H/o9Kd/4oWLTZuyCXi", 
+        "phone": null, 
+        "role": "Admin"
+    }, 
+    {
+        "username": "fermer", 
+        "email": "postertest0@gmail.com", 
+        "hashed_password": "$2b$12$1X5xFz90.nMMNE3PtcE8YO.T9NJ3k0Ld4X02hHrqw0ekCv1.2hQoK", 
+        "phone": null, 
+        "role": "Owner"
+    }, 
+    {
+        "username": "linwex", 
+        "email": "faddbs3@gmail.com", 
+        "hashed_password": "$2b$12$CNNiyejE6nu4mfRbExBGYe8lfday/m0c3V9H/o9Kd/4oWLTZuyCXi", 
+        "phone": null, 
+        "role": "Customer"
+    }
+]

@@ -1,0 +1,10 @@
+[
+    {
+        "business_name": "TestOrganization1", 
+        "user_id": 2
+    }, 
+    {
+        "business_name": "TestOrganization2", 
+        "user_id": 2
+    }
+]
