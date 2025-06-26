@@ -96,3 +96,9 @@ uvicorn src.main:app --reload
 ```bash
 python -m src.broker.consumer
 ```
+
+**Start Celery**
+
+```bash
+celery -A src.worker.app:async_celery worker --loglevel=INFO --pool=solo
+```
