@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.dependencies import CurrentUserDep
+from src.db.db import AsyncSessionDep
 from src.logger import config_logger
 from src.models.enums import NotificationsStateEnum
 from src.notifications.schema import (SNotificationsFilters,
@@ -24,14 +25,16 @@ class NotificationsFlow:
         self,
         current_user: CurrentUserDep | None = None,
         notifications_service: NotificationsServiceDep | None = None,
+        session: AsyncSessionDep | None = None
     ):
         self.current_user = current_user
         self.notifications_service = notifications_service
+        self.session = session
 
     async def get_notifications_flow(self) -> SNotificationsPayload:
         try:
             notifications = await self.notifications_service.get_by_filters(
-                SNotificationsFilters(user_id=self.current_user.id), False
+                SNotificationsFilters(user_id=self.current_user.id), self.session, False
             )
             data = [SNotificationsModel.from_orm(item) for item in notifications]
             return SNotificationsPayload(
@@ -55,7 +58,7 @@ class NotificationsFlow:
 
         try:
             notification_id_db = await self.notifications_service.notification_checked(
-                notification_id, self.current_user.id
+                notification_id, self.current_user.id, self.session
             )
             return SNotificationsReadResponse(notification_id=notification_id_db)
         except Exception as ex:
@@ -71,7 +74,7 @@ class NotificationsFlow:
     async def check_access(self, notification_id: int):
         try:
             notification = await self.notifications_service.get_by_filters(
-                SNotificationsFilters(id=notification_id)
+                SNotificationsFilters(id=notification_id), self.session
             )
         except Exception as ex:
             if isinstance(ex, SQLAlchemyError):

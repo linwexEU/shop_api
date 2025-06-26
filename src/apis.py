@@ -12,9 +12,7 @@ api_router = APIRouter()
 
 
 # Auth router
-api_router.include_router(
-    auth_router, prefix="/auth", tags=["Authenticate & Registration"]
-)
+api_router.include_router(auth_router, prefix="/auth", tags=["Authenticate & Registration"])
 
 
 # Admin router
@@ -26,9 +24,7 @@ api_router.include_router(product_router, prefix="/products", tags=["Products"])
 
 
 # Organization router
-api_router.include_router(
-    organization_router, prefix="/organizations", tags=["Organizations"]
-)
+api_router.include_router(organization_router, prefix="/organizations", tags=["Organizations"])
 
 
 # Basket router
@@ -40,6 +36,4 @@ api_router.include_router(orders_router, prefix="/orders", tags=["Orders"])
 
 
 # Notifications router
-api_router.include_router(
-    notifications_router, prefix="/notifications", tags=["Notifications"]
-)
+api_router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])

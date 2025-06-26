@@ -5,6 +5,7 @@ import jwt
 from fastapi import Depends, HTTPException, Request, status
 
 from src.config import settings
+from src.db.db import AsyncSessionDep
 from src.models.enums import UsersRoleEnum
 from src.models.models import Users
 from src.users.schema import SUserAuthModel, SUsersFilters
@@ -24,7 +25,7 @@ async def get_token(request: Request):
 
 
 async def get_current_user(
-    token: Annotated[str, Depends(get_token)], users_service: UsersServiceDep
+    token: Annotated[str, Depends(get_token)], users_service: UsersServiceDep, session: AsyncSessionDep
 ) -> SUserAuthModel:
     try:
         payload = jwt.decode(
@@ -38,7 +39,7 @@ async def get_current_user(
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
-    user = await users_service.get_by_filters(SUsersFilters(id=int(user_id)))
+    user = await users_service.get_by_filters(SUsersFilters(id=int(user_id)), session)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return SUserAuthModel.from_orm(user)

@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from pydantic import EmailStr
 
 from src.config import settings
+from src.db.db import AsyncSessionDep
 from src.users.schema import SUsersFilters
 from src.utils.dependency import UsersServiceDep
 
@@ -28,9 +29,9 @@ def create_access_token(data: dict) -> str:
 
 
 async def authenticate_user(
-    email: EmailStr, password: str, users_service: UsersServiceDep
+    email: EmailStr, password: str, users_service: UsersServiceDep, session: AsyncSessionDep
 ):
-    user = await users_service.get_by_filters(SUsersFilters(email=email))
+    user = await users_service.get_by_filters(SUsersFilters(email=email), session)
     if not (user and verify_password(password, user.hashed_password)):
         return False
     return user

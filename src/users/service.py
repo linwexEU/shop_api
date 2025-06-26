@@ -1,27 +1,24 @@
-from src.users.repository import UsersRepository
+from src.models.models import Users
+from src.db.db import AsyncSessionDep
+from src.users.repository import PersistenceUsersRepository
 from src.users.schema import SUsersFilters, SUsersModel
+from src.utils.uow import UnitOfWork
 
 
 class UsersService:
-    def __init__(self, users_repo: UsersRepository):
-        self.users_repo: UsersRepository = users_repo()
+    def __init__(self, users_repo: PersistenceUsersRepository):
+        self.users_repo: PersistenceUsersRepository = users_repo()
 
-    async def add(self, data: SUsersModel) -> int:
-        return await self.users_repo.add(data.model_dump())
+    async def add(self, data: SUsersModel, session: AsyncSessionDep) -> int:
+        async with UnitOfWork(session) as uow:
+            return await self.users_repo.add(data.model_dump(), uow.session)
 
-    async def get_all(self):
-        return await self.users_repo.get_all()
+    async def get_by_filters(self, filters: SUsersFilters, session: AsyncSessionDep, one: bool = True) -> Users | list[Users]:
+        return await self.users_repo.get_by_filters(filters.model_dump(exclude_none=True), session, one)
 
-    async def get_by_filters(self, filters: SUsersFilters, one: bool = True):
-        return await self.users_repo.get_by_filters(
-            filters.model_dump(exclude_none=True), one
-        )
+    async def get_or_create(self, data: SUsersModel, session: AsyncSessionDep):
+        async with UnitOfWork(session) as uow:
+            return await self.users_repo.get_or_create(data.model_dump(), uow.session)
 
-    async def delete_by_id(self, entity_id: int) -> int:
-        return await self.users_repo.delete_by_id(entity_id)
-
-    async def get_or_create(self, data: SUsersModel):
-        return await self.users_repo.get_or_create(data.model_dump())
-
-    async def get_organizations(self, owner_id: int):
-        return await self.users_repo.get_organizations(owner_id)
+    async def get_organizations(self, owner_id: int, session: AsyncSessionDep):
+        return await self.users_repo.get_organizations(owner_id, session)

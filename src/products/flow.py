@@ -5,6 +5,7 @@ from fastapi_cache.decorator import cache
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.dependencies import CurrentUserDep, OwnerUserDep
+from src.db.db import AsyncSessionDep
 from src.logger import config_logger
 from src.models.enums import ActEnum, CategoriesEnum
 from src.product_rate_replies.schema import (SProductRateReplies,
@@ -44,6 +45,7 @@ class ProductsFlow:
         product_rates_interaction_service: ProductRatesInteractionDep | None = None,
         users_service: UsersServiceDep | None = None,
         current_user: CurrentUserDep | OwnerUserDep | None = None,
+        session: AsyncSessionDep | None = None
     ):
         self.products_service = products_service
         self.product_rates_service = product_rates_service
@@ -51,6 +53,7 @@ class ProductsFlow:
         self.product_rates_interaction_service = product_rates_interaction_service
         self.users_service = users_service
         self.current_user = current_user
+        self.session = session
 
     async def get_products_by_category(
         self, pagination: Pagination, category: CategoriesEnum
@@ -92,7 +95,7 @@ class ProductsFlow:
         self, organization_id: int, excel_file: UploadFile, owner: OwnerUserDep
     ) -> SProductAddResponse:
         # Check that organization belong to Owner
-        organizations = await self.users_service.get_organizations(owner.id)
+        organizations = await self.users_service.get_organizations(owner.id, self.session)
         organizations_id = [org.id for org in organizations.organizations]
 
         if organization_id not in organizations_id:
@@ -136,7 +139,7 @@ class ProductsFlow:
                     product_id=product_id,
                     stars=data.stars,
                     notes=data.notes,
-                )
+                ), self.session
             )
             return SRatesModelResponse(rate_id=rate_id)
         except Exception as ex:
@@ -169,7 +172,7 @@ class ProductsFlow:
             reply_id = await self.product_rate_replies_service.add(
                 SProductRateReplies(
                     rate_id=rate_id, text=data.text, user_id=self.current_user.id
-                )
+                ), self.session
             )
             return SProductRateRepliesModelResponse(reply_id=reply_id)
         except Exception as ex:
@@ -182,7 +185,7 @@ class ProductsFlow:
     async def get_product_image(self, product_id: int) -> SProductImage:
         try:
             product = await self.products_service.get_by_filters(
-                SProductFilters(id=product_id)
+                SProductFilters(id=product_id), self.session
             )
             return SProductImage(id=product_id, image=product.image)
         except Exception as ex:
@@ -205,12 +208,12 @@ class ProductsFlow:
         # Check that user have dislike
         interaction = await self.get_interaction(rate_id, ActEnum.Dislike)
         if interaction is not None:
-            await self.product_rates_service.remove_dislike_rate(rate_id)
+            await self.product_rates_service.remove_dislike_rate(rate_id, self.session)
 
         try:
             # Add like
             rate_id = await self.product_rates_service.like_rate(
-                rate_id, self.current_user.id
+                rate_id, self.current_user.id, self.session
             )
             if rate_id is None:
                 raise SQLAlchemyError
@@ -239,12 +242,12 @@ class ProductsFlow:
         # Check that user have like
         interaction = await self.get_interaction(rate_id, ActEnum.Like)
         if interaction is not None:
-            await self.product_rates_service.remove_like_rate(rate_id)
+            await self.product_rates_service.remove_like_rate(rate_id, self.session)
 
         try:
             # Add dislike
             rate_id = await self.product_rates_service.dislike_rate(
-                rate_id, self.current_user.id
+                rate_id, self.current_user.id, self.session
             )
             if rate_id is None:
                 raise SQLAlchemyError
@@ -267,7 +270,7 @@ class ProductsFlow:
         interaction = await self.product_rates_interaction_service.get_by_filters(
             SLikedProductRateFilters(
                 act=act, user_id=self.current_user.id, rate_id=rate_id
-            )
+            ), self.session
         )
         return interaction
 
@@ -275,14 +278,14 @@ class ProductsFlow:
         interaction = await self.product_rates_interaction_service.add(
             SLikedProductRateModel(
                 act=act, rate_id=rate_id, user_id=self.current_user.id
-            )
+            ), self.session
         )
         return interaction
 
     @cache(120)
     async def get_cached_products(self, category: CategoriesEnum):
         query_products = await self.products_service.get_by_filters(
-            SProductFilters(category=category), False
+            SProductFilters(category=category), self.session, False
         )
         return [SProducts.to_dict(p) for p in query_products]
 
@@ -291,7 +294,7 @@ class ProductsFlow:
         self, search: SProductsSearch, category: CategoriesEnum
     ):
         query_products = await self.products_service.get_products_by_search(
-            search, category
+            search, category, self.session
         )
         if query_products:
             return [SProducts.to_dict(p) for p in query_products]
@@ -300,13 +303,13 @@ class ProductsFlow:
     @cache(120)
     async def get_cached_product_rates(self, product_id: int):
         rates = await self.product_rates_service.get_by_filters(
-            SProductRatesFilters(product_id=product_id), False
+            SProductRatesFilters(product_id=product_id), self.session, False
         )
         return [SRates.to_dict(r) for r in rates]
 
     @cache(120)
     async def get_cached_product_rate_replies(self, rate_id: int):
         replies = await self.product_rate_replies_service.get_by_filters(
-            SProductRateRepliesFilters(rate_id=rate_id), False
+            SProductRateRepliesFilters(rate_id=rate_id), self.session, False
         )
         return [SProductRateReplies.to_dict(r) for r in replies]

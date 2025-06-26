@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, status
 
 from src.auth.dependencies import CurrentUserDep, OwnerUserDep
+from src.db.db import AsyncSessionDep
 from src.models.enums import CategoriesEnum
 from src.product_rate_replies.schema import (SProductRateRepliesModel,
                                              SProductRateRepliesModelResponse,
@@ -25,8 +26,9 @@ async def get_product(
     pagination: Pagination,
     category_type: CategoriesEnum,
     products_service: ProductsServiceDep,
+    session: AsyncSessionDep
 ) -> SProductsResult:
-    flow = ProductsFlow(products_service=products_service)
+    flow = ProductsFlow(products_service=products_service, session=session)
     return await flow.get_products_by_category(pagination, category_type)
 
 
@@ -35,16 +37,17 @@ async def get_product_by_search(
     search: SProductsSearch,
     category_type: CategoriesEnum,
     products_service: ProductsServiceDep,
+    session: AsyncSessionDep
 ) -> SProductsResult:
-    flow = ProductsFlow(products_service=products_service)
+    flow = ProductsFlow(products_service=products_service, session=session)
     return await flow.get_products_by_search(search, category_type)
 
 
 @router.get("/{product_id}/image", response_model=SProductImage)
 async def get_product_image(
-    product_id: int, products_service: ProductsServiceDep
+    product_id: int, products_service: ProductsServiceDep, session: AsyncSessionDep
 ) -> SProductImage:
-    flow = ProductsFlow(products_service=products_service)
+    flow = ProductsFlow(products_service=products_service, session=session)
     return await flow.get_product_image(product_id)
 
 
@@ -59,16 +62,17 @@ async def add_products(
     owner: OwnerUserDep,
     users_service: UsersServiceDep,
     products_service: ProductsServiceDep,
+    session: AsyncSessionDep
 ) -> SProductAddResponse:
-    flow = ProductsFlow(users_service=users_service, products_service=products_service)
+    flow = ProductsFlow(users_service=users_service, products_service=products_service, session=session)
     return await flow.add_product_flow(organization_id, excel_file, owner)
 
 
 @router.get("/{product_id}/rates", response_model=SRatesResult)
 async def get_product_rates(
-    product_id: int, product_rates_service: ProductRatesServiceDep
+    product_id: int, product_rates_service: ProductRatesServiceDep, session: AsyncSessionDep
 ) -> SRatesResult:
-    flow = ProductsFlow(product_rates_service=product_rates_service)
+    flow = ProductsFlow(product_rates_service=product_rates_service, session=session)
     return await flow.get_product_rates_flow(product_id)
 
 
@@ -82,9 +86,10 @@ async def add_product_rate(
     data: SRatesModel,
     current_user: CurrentUserDep,
     product_rates_service: ProductRatesServiceDep,
+    session: AsyncSessionDep
 ) -> SRatesModelResponse:
     flow = ProductsFlow(
-        product_rates_service=product_rates_service, current_user=current_user
+        product_rates_service=product_rates_service, current_user=current_user, session=session
     )
     return await flow.add_product_rate_flow(product_id, data)
 
@@ -95,11 +100,13 @@ async def like_rate(
     current_user: CurrentUserDep,
     product_rates_interaction_service: ProductRatesInteractionDep,
     product_rates_service: ProductRatesServiceDep,
+    session: AsyncSessionDep
 ) -> SRateLikeResponse:
     flow = ProductsFlow(
         product_rates_interaction_service=product_rates_interaction_service,
         current_user=current_user,
         product_rates_service=product_rates_service,
+        session=session
     )
     return await flow.like_rate_flow(rate_id)
 
@@ -110,20 +117,22 @@ async def dislike_rate(
     current_user: CurrentUserDep,
     product_rates_interaction_service: ProductRatesInteractionDep,
     product_rates_service: ProductRatesServiceDep,
+    session: AsyncSessionDep
 ) -> SRateDislikeResponse:
     flow = ProductsFlow(
         current_user=current_user,
         product_rates_interaction_service=product_rates_interaction_service,
         product_rates_service=product_rates_service,
+        session=session
     )
     return await flow.dislike_rate_flow(rate_id)
 
 
 @router.get("/rates/{rate_id}/replies", response_model=SProductRateRepliesResult)
 async def get_rate_replies(
-    rate_id: int, product_rate_replies_service: ProductRateRepliesServiceDep
+    rate_id: int, product_rate_replies_service: ProductRateRepliesServiceDep, session: AsyncSessionDep
 ) -> SProductRateRepliesResult:
-    flow = ProductsFlow(product_rate_replies_service=product_rate_replies_service)
+    flow = ProductsFlow(product_rate_replies_service=product_rate_replies_service, session=session)
     return await flow.get_product_rate_replies_flow(rate_id)
 
 
@@ -137,9 +146,11 @@ async def add_reply_for_rate(
     data: SProductRateRepliesModel,
     product_rate_replies_service: ProductRateRepliesServiceDep,
     current_user: CurrentUserDep,
+    session: AsyncSessionDep
 ) -> SProductRateRepliesModelResponse:
     flow = ProductsFlow(
         product_rate_replies_service=product_rate_replies_service,
         current_user=current_user,
+        session=session
     )
     return await flow.add_product_rate_reply_flow(rate_id, data)

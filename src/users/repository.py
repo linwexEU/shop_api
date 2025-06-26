@@ -1,36 +1,60 @@
+from abc import ABC, abstractmethod
+
 from sqlalchemy import insert, select
 from sqlalchemy.orm import selectinload
 
-from src.db.db import async_session_maker
+from src.db.db import AsyncSessionDep
 from src.models.models import Users
-from src.utils.repository import SQLAlchemyRepository
 
 
-class UsersRepository(SQLAlchemyRepository):
-    model = Users
+class UsersRepository(ABC): 
+    @abstractmethod
+    async def add(self, data: dict, session: AsyncSessionDep) -> int: ...
 
-    async def get_or_create(self, data: dict):
-        async with async_session_maker() as session:
-            # Get user if exists
-            query = select(self.model).where(self.model.email == data["email"])
-            user = await session.execute(query)
-            resulted_user = user.scalar()
+    @abstractmethod
+    async def get_by_filters(self, filters: dict, session: AsyncSessionDep, one: bool = True) -> Users | list[Users]: ...
 
-            if resulted_user:
-                return resulted_user
+    @abstractmethod 
+    async def get_or_create(self, data: dict, session: AsyncSessionDep) -> Users | int: ...
 
-            # Create if not exist
-            query = insert(self.model).values(**data).returning(self.model.id)
-            created_user = await session.execute(query)
-            await session.commit()
-            return created_user.scalar()
+    @abstractmethod 
+    async def get_organizations(self, owner_id: int, session: AsyncSessionDep) -> Users: ... 
 
-    async def get_organizations(self, owner_id: int):
-        async with async_session_maker() as session:
-            query = (
-                select(self.model)
-                .where(self.model.id == owner_id)
-                .options(selectinload(self.model.organizations))
-            )
-            result = await session.execute(query)
-            return result.scalar()
+
+class PersistenceUsersRepository(UsersRepository):
+    async def add(self, data: dict, session: AsyncSessionDep) -> int: 
+        query = insert(Users).values(**data).returning(Users.id) 
+        result = await session.execute(query) 
+        return result.scalar() 
+
+    async def get_by_filters(self, filters: dict, session: AsyncSessionDep, one: bool = True): 
+        query = select(Users).filter_by(**filters) 
+        result = await session.execute(query) 
+        
+        if one: 
+            return result.scalar() 
+        return result.scalars().all() 
+
+    async def get_or_create(self, data: dict, session: AsyncSessionDep) -> Users | int:
+        query = select(Users).where(Users.email == data["email"])
+
+        # Get user if exists
+        user = await session.execute(query) 
+        resulted_user = user.scalar() 
+
+        if resulted_user: 
+            return resulted_user 
+        
+        # Create if not exist
+        query = insert(Users).values(**data).returning(Users.id) 
+        created_user = await session.execute(query) 
+        return created_user.scalar()
+
+    async def get_organizations(self, owner_id: int, session: AsyncSessionDep) -> Users: 
+        query = (
+            select(Users)
+            .where(Users.id == owner_id)
+            .options(selectinload(Users.organizations))
+        )
+        result = await session.execute(query)
+        return result.scalar()

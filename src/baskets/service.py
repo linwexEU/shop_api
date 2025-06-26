@@ -1,36 +1,36 @@
-from src.baskets.repository import BasketsRepository
+from src.models.models import Baskets
+from src.baskets.repository import PersistenceBasketsRepository
 from src.baskets.schema import SBasketsFilters, SBasketsModel
+from src.db.db import AsyncSessionDep 
+from src.utils.uow import UnitOfWork
 
 
 class BasketsService:
-    def __init__(self, bask_repo: BasketsRepository):
-        self.bask_repo: BasketsRepository = bask_repo()
+    def __init__(self, bask_repo: PersistenceBasketsRepository):
+        self.bask_repo: PersistenceBasketsRepository = bask_repo()
 
-    async def add(self, data: SBasketsModel) -> int:
-        return await self.bask_repo.add(data.model_dump())
+    async def add(self, data: SBasketsModel, session: AsyncSessionDep) -> int:
+        async with UnitOfWork(session) as uow:
+            return await self.bask_repo.add(data.model_dump(), uow.session)
 
-    async def get_all(self):
-        return await self.bask_repo.get_all()
+    async def get_by_filters(self, filters: SBasketsFilters, session: AsyncSessionDep, one: bool = True) -> list[Baskets] | Baskets:
+        return await self.bask_repo.get_by_filters(filters.model_dump(exclude_none=True), session, one)
 
-    async def get_by_filters(self, filters: SBasketsFilters, one: bool = True):
-        return await self.bask_repo.get_by_filters(
-            filters.model_dump(exclude_none=True), one
-        )
+    async def get_basket_with_products(self, user_id: int, session: AsyncSessionDep):
+        return await self.bask_repo.get_basket_with_products(user_id, session)
 
-    async def delete_by_id(self, entity_id: int) -> int:
-        return await self.bask_repo.delete_by_id(entity_id)
+    async def increase_item_count(self, product_id: int, user_id: int, session: AsyncSessionDep) -> int:
+        async with UnitOfWork(session) as uow:
+            return await self.bask_repo.increase_item_count(product_id, user_id, uow.session)
 
-    async def get_basket_with_products(self, user_id: int):
-        return await self.bask_repo.get_basket_with_products(user_id)
+    async def decrease_item_count(self, product_id: int, user_id: int, session: AsyncSessionDep) -> int:
+        async with UnitOfWork(session) as uow:
+            return await self.bask_repo.decrease_item_count(product_id, user_id, uow.session)
 
-    async def increase_item_count(self, product_id: int, user_id: int) -> int:
-        return await self.bask_repo.increase_item_count(product_id, user_id)
+    async def delete_product(self, product_id: int, user_id: int, session: AsyncSessionDep) -> int:
+        async with UnitOfWork(session) as uow:
+            return await self.bask_repo.delete_product(product_id, user_id, uow.session)
 
-    async def decrease_item_count(self, product_id: int, user_id: int) -> int:
-        return await self.bask_repo.decrease_item_count(product_id, user_id)
-
-    async def delete_product(self, product_id: int, user_id: int) -> int:
-        return await self.bask_repo.delete_product(product_id, user_id)
-
-    async def clear_basket(self, user_id: int) -> None:
-        await self.bask_repo.clear_basket(user_id)
+    async def clear_basket(self, user_id: int, session: AsyncSessionDep) -> None:
+        async with UnitOfWork(session) as uow:
+            await self.bask_repo.clear_basket(user_id, uow.session)

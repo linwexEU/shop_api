@@ -1,45 +1,64 @@
-from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from abc import ABC, abstractmethod
 
-from src.db.db import async_session_maker
+from sqlalchemy import func, select, insert
+
+from src.db.db import AsyncSessionDep
 from src.models.enums import CategoriesEnum
 from src.models.models import Products
-from src.products.schema import SProductFilters, SProductsSearch
-from src.utils.repository import SQLAlchemyRepository
+from src.products.schema import SProductsSearch
 
 
-class ProductsRepository(SQLAlchemyRepository):
-    model = Products
+class ProductsReposiotory(ABC): 
+    @abstractmethod
+    async def add(self, data: dict, session: AsyncSessionDep) -> int: ...
 
-    async def get_product_count(self, category: CategoriesEnum) -> int:
-        async with async_session_maker() as session:
-            query = (
-                select(func.count())
-                .select_from(self.model)
-                .where(self.model.category == category)
-            )
-            result = await session.execute(query)
-            return result.scalar()
+    @abstractmethod 
+    async def get_by_filters(self, filters: dict, session: AsyncSessionDep, one: bool = True) -> list[Products] | Products: ... 
 
-    async def get_products_by_search(
-        self, search: SProductsSearch, category: CategoriesEnum
-    ):
-        async with async_session_maker() as session:
-            query = select(self.model).where(self.model.category == category)
+    @abstractmethod 
+    async def get_product_count(self, category: CategoriesEnum, session: AsyncSessionDep) -> int: ...
 
-            if search.title:
-                query = query.where(self.model.title.ilike(f"%{search.title}%"))
+    @abstractmethod
+    async def get_products_by_search(self, search: SProductsSearch, category: CategoriesEnum, session: AsyncSessionDep) -> list[Products]: ...
 
-            if search.low_price and search.high_price:
-                query = query.where(
-                    self.model.price.between(search.low_price, search.high_price)
-                )
 
-            if search.desc_price:
-                query = query.order_by(self.model.price.desc())
+class PersistenceProductsRepository(ProductsReposiotory): 
+    async def add(self, data: dict, session: AsyncSessionDep) -> int: 
+        query = insert(Products).values(**data).returning(Products.id) 
+        result = await session.execute(query) 
+        return result.scalar() 
+    
+    async def get_by_filters(self, filters: dict, session: AsyncSessionDep, one: bool = True) -> list[Products] | Products: 
+        query = select(Products).filter_by(**filters) 
+        result = await session.execute(query) 
 
-            if search.asc_price:
-                query = query.order_by(self.model.price)
+        if one: 
+            return result.scalar() 
+        return result.scalars().all()
 
-            result = await session.execute(query)
-            return result.scalars().all()
+    async def get_product_count(self, category: CategoriesEnum, session: AsyncSessionDep) -> int: 
+        query = (
+            select(func.count())
+            .select_from(Products)
+            .where(Products.category == category)
+        )
+        result = await session.execute(query) 
+        return result.scalar() 
+    
+    async def get_products_by_search(self, search: SProductsSearch, category: CategoriesEnum, session: AsyncSessionDep) -> list[Products]: 
+        query = select(Products).where(Products.category == category)
+
+        if search.title: 
+            query = query.where(Products.title.ilike(f"%{search.title}%"))
+
+        if search.low_price and search.high_price: 
+            query = query.where(Products.price.between(search.low_price, search.high_price))
+
+        if search.desc_price:
+            query = query.order_by(Products.price.desc())
+
+        if search.asc_price:
+            query = query.order_by(Products.price)
+
+        result = await session.execute(query)
+        return result.scalars().all()

@@ -6,6 +6,7 @@ from fastapi_cache.decorator import cache
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.dependencies import CurrentUserDep, OwnerUserDep
+from src.db.db import AsyncSessionDep
 from src.logger import config_logger
 from src.organization_rates.schema import (SOrganizationRate,
                                            SOrganizationRateAdd,
@@ -42,11 +43,13 @@ class OrganizationFlow:
         org_rates_service: OrganizationRatesServiceDep | None = None,
         users_service: UsersServiceDep | None = None,
         org_rates_iter_service: OrganizationRatesInteractionDep | None = None,
+        session: AsyncSessionDep | None = None
     ):
         self.org_service = org_service
         self.org_rates_service = org_rates_service
         self.users_service = users_service
         self.org_rates_iter_service = org_rates_iter_service
+        self.session = session
 
     async def get_organization_flow(
         self, organization_id: int
@@ -69,7 +72,7 @@ class OrganizationFlow:
     ) -> SOrganizationAddResponse:
         try:
             organization_id = await self.org_service.add(
-                SOrganizationsModel(business_name=data.business_name, user_id=owner.id)
+                SOrganizationsModel(business_name=data.business_name, user_id=owner.id), self.session
             )
             return SOrganizationAddResponse(organization_id=organization_id)
         except Exception as ex:
@@ -102,7 +105,7 @@ class OrganizationFlow:
         current_user: CurrentUserDep,
     ) -> SOrganizationRateAddResponse:
         # Check that isn't owner organization
-        organizations = await self.users_service.get_organizations(current_user.id)
+        organizations = await self.users_service.get_organizations(current_user.id, self.session)
         organizations_id = [org.id for org in organizations.organizations]
 
         if organization_id in organizations_id:
@@ -112,7 +115,7 @@ class OrganizationFlow:
         interaction = await self.org_rates_iter_service.get_by_filters(
             SOrganizationRatesInteractionFilters(
                 organization_id=organization_id, user_id=current_user.id
-            )
+            ), self.session
         )
 
         if interaction is not None:
@@ -125,14 +128,14 @@ class OrganizationFlow:
                     notes=data.notes,
                     user_id=current_user.id,
                     organization_id=organization_id,
-                )
+                ), self.session
             )
 
             # Add interaction
             await self.org_rates_iter_service.add(
                 SOrganizationRatesInteractionModel(
                     user_id=current_user.id, organization_id=organization_id
-                )
+                ), self.session
             )
 
             return SOrganizationRateAddResponse(rate_id=rate_id)
@@ -147,7 +150,7 @@ class OrganizationFlow:
         self, organization_id: int, owner: OwnerUserDep
     ) -> SOrganizationDeleteResponse:
         # Check that it's owner's organization
-        organizations = await self.users_service.get_organizations(owner.id)
+        organizations = await self.users_service.get_organizations(owner.id, self.session)
         organizations_id = [org.id for org in organizations.organizations]
 
         if organization_id not in organizations_id:
@@ -155,7 +158,7 @@ class OrganizationFlow:
 
         # Check if organization has already deleted
         organization = await self.org_service.get_by_filters(
-            SOrganizationsFilters(id=organization_id)
+            SOrganizationsFilters(id=organization_id), self.session
         )
 
         if organization.delete_utc is not None:
@@ -163,7 +166,7 @@ class OrganizationFlow:
 
         try:
             await self.org_service.add_delete_utc(
-                organization_id, datetime.now(timezone.utc)
+                organization_id, datetime.now(timezone.utc), self.session
             )
             return SOrganizationDeleteResponse(organization_id=organization_id)
         except Exception as ex:
@@ -176,13 +179,13 @@ class OrganizationFlow:
     @cache(300)
     async def get_cached_organization(self, organization_id: int):
         organization = await self.org_service.get_by_filters(
-            SOrganizationsFilters(id=organization_id)
+            SOrganizationsFilters(id=organization_id), self.session
         )
         return SOrganizationResponse.to_dict(organization)
 
     @cache(120)
     async def get_cached_rates(self, organization_id: int):
         rates = await self.org_rates_service.get_by_filters(
-            SOrganizationRatesFilters(organization_id=organization_id), False
+            SOrganizationRatesFilters(organization_id=organization_id), self.session, False
         )
         return [SOrganizationRate.to_dict(r) for r in rates]

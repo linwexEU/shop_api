@@ -2,8 +2,10 @@ import asyncio
 
 from transitions import Machine, State
 
+from src.db.db import async_session_maker
 from src.models.enums import OrdersStateEnum
 from src.utils.dependency import OrdersServiceDep
+from src.utils.uow import UnitOfWork
 
 
 class OrdersStateMachine:
@@ -11,7 +13,7 @@ class OrdersStateMachine:
         self,
         order_uuid: str,
         orders_service: OrdersServiceDep,
-        current_state: OrdersStateEnum,
+        current_state: OrdersStateEnum
     ) -> None:
         # Initialize states
         self.states = [
@@ -60,15 +62,19 @@ class OrdersStateMachine:
         asyncio.create_task(self.canceled_order())
 
     async def change_state(self):
-        match self.state:
-            case OrdersStateEnum.Delivering:
-                await self.orders_service.update_state(
-                    self.order_uuid, OrdersStateEnum.Delivering
-                )
-            case OrdersStateEnum.Done:
-                await self.orders_service.update_state(
-                    self.order_uuid, OrdersStateEnum.Done
-                )
+        async with async_session_maker() as session:
+            async with UnitOfWork(session) as uow:
+                match self.state:
+                    case OrdersStateEnum.Delivering:
+                        await self.orders_service.update_state(
+                            self.order_uuid, OrdersStateEnum.Delivering, uow.session
+                        )
+                    case OrdersStateEnum.Done:
+                        await self.orders_service.update_state(
+                            self.order_uuid, OrdersStateEnum.Done, uow.session
+                        )
 
     async def canceled_order(self):
-        await self.orders_service.canceled_order(self.order_uuid)
+        async with async_session_maker() as session:
+            async with UnitOfWork(session) as uow:
+                await self.orders_service.canceled_order(self.order_uuid, uow.session)

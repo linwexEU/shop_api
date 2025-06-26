@@ -2,84 +2,84 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from src.baskets.repository import BasketsRepository
+from src.baskets.repository import PersistenceBasketsRepository
 from src.baskets.service import BasketsService
-from src.categories.repository import CategoriesRepository
+from src.categories.repository import PersistenceCategoriesRepository
 from src.categories.service import CategoriesService
-from src.notifications.repository import NotificationsRepository
+from src.notifications.repository import PersistenceNotificationsRepository
 from src.notifications.service import NotificationsService
-from src.order_items.repository import OrderItemsRepository
+from src.order_items.repository import PersistenceOrderItemsRepository
 from src.order_items.service import OrderItemsService
-from src.orders.repository import OrdersRepository
+from src.orders.repository import PersistenceOrdersRepository
 from src.orders.service import OrdersService
-from src.organization_rates.repository import OrganizationRatesRepository
+from src.organization_rates.repository import PersistenceOrganizationRatesRepository
 from src.organization_rates.service import OgranizationRatesService
-from src.organization_rates_interaction.repository import OrganizationRatesInteractionRepository
+from src.organization_rates_interaction.repository import PersistenceOrganizationRatesInteractionRepository
 from src.organization_rates_interaction.service import OrganizationRatesInteractrionService
-from src.organizations.repository import OrganizationsRepository
+from src.organizations.repository import PersistenceOrganizationsRepository
 from src.organizations.service import OrganizationsService
-from src.product_rate_replies.repository import ProductRateRepliesRepository
+from src.product_rate_replies.repository import PersistenceProductRateRepliesRepository
 from src.product_rate_replies.service import ProductRateRepliesService
-from src.product_rates.repository import ProductRatesRepository
+from src.product_rates.repository import PersistenceProductRatesRepository
 from src.product_rates.service import ProductRatesService
-from src.product_rates_interaction.repository import ProductRatesInteractionRepository
+from src.product_rates_interaction.repository import PersistenceProductRatesInteractionRepository
 from src.product_rates_interaction.service import ProductRatesInteractionService
-from src.products.repository import ProductsRepository
+from src.products.repository import PersistenceProductsRepository
 from src.products.service import ProductsService
-from src.users.repository import UsersRepository
+from src.users.repository import PersistenceUsersRepository
 from src.users.service import UsersService
 
 
 def users_service() -> UsersService:
-    return UsersService(UsersRepository)
+    return UsersService(PersistenceUsersRepository)
 
 
 def products_service() -> ProductsService:
-    return ProductsService(ProductsRepository)
+    return ProductsService(PersistenceProductsRepository)
 
 
 def categories_service() -> CategoriesService:
-    return CategoriesService(CategoriesRepository)
+    return CategoriesService(PersistenceCategoriesRepository)
 
 
 def baskets_service() -> BasketsService:
-    return BasketsService(BasketsRepository)
+    return BasketsService(PersistenceBasketsRepository)
 
 
 def order_items_service() -> OrderItemsService:  #
-    return OrderItemsService(OrderItemsRepository)
+    return OrderItemsService(PersistenceOrderItemsRepository)
 
 
 def orders_service() -> OrdersService:
-    return OrdersService(OrdersRepository)
+    return OrdersService(PersistenceOrdersRepository)
 
 
 def organization_rates_service() -> OgranizationRatesService:
-    return OgranizationRatesService(OrganizationRatesRepository)
+    return OgranizationRatesService(PersistenceOrganizationRatesRepository)
 
 
 def organizations_service() -> OrganizationsService:
-    return OrganizationsService(OrganizationsRepository)
+    return OrganizationsService(PersistenceOrganizationsRepository)
 
 
 def product_rates_service() -> ProductRatesService:
-    return ProductRatesService(ProductRatesRepository)
+    return ProductRatesService(PersistenceProductRatesRepository)
 
 
 def product_rate_replies_service() -> ProductRateRepliesService:
-    return ProductRateRepliesService(ProductRateRepliesRepository)
+    return ProductRateRepliesService(PersistenceProductRateRepliesRepository)
 
 
 def product_rates_interaction_service() -> ProductRatesInteractionService:
-    return ProductRatesInteractionService(ProductRatesInteractionRepository)
+    return ProductRatesInteractionService(PersistenceProductRatesInteractionRepository)
 
 
 def organization_rates_interaction_service() -> OrganizationRatesInteractrionService:
-    return OrganizationRatesInteractrionService(OrganizationRatesInteractionRepository)
+    return OrganizationRatesInteractrionService(PersistenceOrganizationRatesInteractionRepository)
 
 
 def notifications_service() -> NotificationsService:
-    return NotificationsService(NotificationsRepository)
+    return NotificationsService(PersistenceNotificationsRepository)
 
 
 UsersServiceDep = Annotated[UsersService, Depends(users_service)]

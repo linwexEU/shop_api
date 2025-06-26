@@ -1,4 +1,5 @@
 from src.broker.producer import Producer
+from src.db.db import async_session_maker
 from src.models.enums import CategoriesEnum, NotificationsTypeEnum
 from src.notifications.schema import SNotifications
 from src.scripts.generator import GenerateExcel, ReadExcel
@@ -55,4 +56,5 @@ async def send_notification(target_id: int, type: NotificationsTypeEnum):
     notifications_service_db = notifications_service()
 
     # Send notification
-    await notifications_service_db.add(SNotifications(type=type, user_id=target_id))
+    async with async_session_maker() as session:
+        await notifications_service_db.add(SNotifications(type=type, user_id=target_id), session)

@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.auth.auth import (authenticate_user, create_access_token,
                            get_hash_password)
 from src.config import settings
+from src.db.db import AsyncSessionDep
 from src.logger import config_logger
 from src.models.enums import UsersRoleEnum
 from src.users.schema import (SUsersAuth, SUsersAuthResponse, SUsersModel,
@@ -28,8 +29,13 @@ config_logger()
 
 
 class AuthFlow:
-    def __init__(self, users_service: UsersServiceDep | None = None):
+    def __init__(
+        self, 
+        users_service: UsersServiceDep | None = None, 
+        session: AsyncSessionDep | None = None
+    ):
         self.users_service = users_service
+        self.session = session
 
     async def register_flow(
         self, data: SUsersRegistration
@@ -51,7 +57,7 @@ class AuthFlow:
 
         try:
             user_id = await self.users_service.add(
-                SUsersModel.from_orm(data, hashed_password)
+                SUsersModel.from_orm(data, hashed_password), self.session
             )
             return SUsersRegistrationResponse(user_id=user_id, registered=True)
         except Exception as ex:
@@ -66,7 +72,7 @@ class AuthFlow:
     ) -> SUsersAuthResponse:
         try:
             user = await authenticate_user(
-                data.email, data.password, self.users_service
+                data.email, data.password, self.users_service, self.session
             )
             access_token = create_access_token({"sub": str(user.id)})
             response.set_cookie(
@@ -112,7 +118,7 @@ class AuthFlow:
                 hashed_password=get_hash_password(
                     "".join(random.sample(string.ascii_letters + string.digits, 8))
                 ),
-            )
+            ), self.session
         )
 
         # Create access_token

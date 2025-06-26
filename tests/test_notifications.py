@@ -4,9 +4,11 @@ from tests.clients.notifications import NotificationsCli
 from tests.clients.baskets import BasketsCli 
 from tests.clients.orders import OrdersCli
 
+from src.db.db import async_session_maker
 from src.utils.dependency import notifications_service
 from src.models.enums import NotificationsTypeEnum, OrdersStateChangerEnum
 from src.notifications.schema import SNotifications
+from src.utils.uow import UnitOfWork
 
 
 notifications_cli = NotificationsCli() 
@@ -51,12 +53,14 @@ class TestNotifications:
         assert response is None 
 
         # Create Notification 
-        await notifications_service_db.add(
-            SNotifications(
-                type=NotificationsTypeEnum.NewOrder, 
-                user_id=3 # customer_ac
-            )
-        )
+        async with async_session_maker() as session: 
+            async with UnitOfWork(session) as uow:
+                await notifications_service_db.add(
+                    SNotifications(
+                        type=NotificationsTypeEnum.NewOrder, 
+                        user_id=3 # customer_ac
+                    ), uow.session
+                )
 
         # Get notification 
         notifications = await notifications_cli.get_all_notifications(customer_ac) 

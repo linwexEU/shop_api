@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.auth.dependencies import CurrentUserDep
 from src.baskets.schema import SBasket
+from src.db.db import AsyncSessionDep
 from src.logger import config_logger
 from src.models.enums import (NotificationsTypeEnum, OrdersStateChangerEnum,
                               OrdersStateEnum)
@@ -32,11 +33,13 @@ class OrdersFlow:
         orders_service: OrdersServiceDep | None = None,
         order_items_service: OrderItemsServiceDep | None = None,
         baskets_service: BasketsServiceDep | None = None,
+        session: AsyncSessionDep | None = None
     ):
         self.current_user = current_user
         self.orders_service = orders_service
         self.order_items_service = order_items_service
         self.baskets_service = baskets_service
+        self.session = session
 
     async def get_orders_flow(self) -> SOrdersPayload:
         try:
@@ -64,7 +67,7 @@ class OrdersFlow:
     async def change_state_flow(self, uuid: str, state: OrdersStateChangerEnum) -> None:
         # Get current state
         try:
-            order = await self.orders_service.get_by_filters(SOrdersFilters(uuid=uuid))
+            order = await self.orders_service.get_by_filters(SOrdersFilters(uuid=uuid), self.session)
         except Exception as ex:
             if isinstance(ex, SQLAlchemyError):
                 logger.error("Db error: %s" % ex)
@@ -85,9 +88,7 @@ class OrdersFlow:
                     order_state.delivered()
 
                     # Send notification
-                    send_notification.delay(
-                        order.user_id, NotificationsTypeEnum.OrderComplete.value
-                    )
+                    send_notification.delay(order.user_id, NotificationsTypeEnum.OrderComplete.value)
                 case OrdersStateEnum.Canceled.value:
                     order_state.canceled()
         except Exception as ex:
@@ -99,7 +100,7 @@ class OrdersFlow:
 
     async def make_order_flow(self) -> SOrderResult:
         basket = await self.baskets_service.get_basket_with_products(
-            self.current_user.id
+            self.current_user.id, self.session
         )
         items = [SBasket.from_orm(item) for item in basket]
 
@@ -113,7 +114,7 @@ class OrdersFlow:
                     uuid=str(uuid.uuid4()),
                     total_price=self.calculate_total_count(items),
                     user_id=self.current_user.id,
-                )
+                ), self.session
             )
 
             # Dublicate items to OrderItems
@@ -124,7 +125,7 @@ class OrdersFlow:
                         product_id=item.product.id,
                         user_id=self.current_user.id,
                         quantity=item.quantity,
-                    )
+                    ), self.session
                 )
 
             return SOrderResult(order_id=order_id)
@@ -138,7 +139,7 @@ class OrdersFlow:
     @cache(60)
     async def get_cached_order_items(self):
         order_items = await self.order_items_service.get_full_order_items(
-            self.current_user.id
+            self.current_user.id, self.session
         )
 
         # Aggregate by uuid
